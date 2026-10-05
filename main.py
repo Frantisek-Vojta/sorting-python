@@ -91,7 +91,7 @@ class Aplikace:
         self.zastavit = False    # nastavi tlacitko Zastavit
 
         ttk.Label(okno, text="SortApp", font=("", 20, "bold")).pack(anchor="w", padx=10, pady=(10, 0))
-        ttk.Label(okno, text="Stejná data. Jedenáct algoritmů. Porovnání skutečné doby třídění.").pack(anchor="w", padx=10)
+        ttk.Label(okno, text="Stejná data. Čtyři algoritmy. Porovnání skutečné doby třídění.").pack(anchor="w", padx=10)
 
         self.vytvor_cast_data()
         self.vytvor_cast_algoritmy()
@@ -201,7 +201,7 @@ class Aplikace:
         ramecek = ttk.LabelFrame(self.okno, text="2  Vyberte algoritmy")
         ramecek.pack(fill="x", padx=10, pady=5)
 
-        # zaskrtavatka ve dvou sloupcich
+        # zaskrtavatka v mrizce 2 x 2
         mrizka = ttk.Frame(ramecek)
         mrizka.pack(fill="x", padx=5, pady=3)
         self.zaskrtnuto = []  # pro kazdy algoritmus jedna promenna True/False
@@ -210,8 +210,8 @@ class Aplikace:
             self.zaskrtnuto.append(promenna)
             text = f"{alg['nazev']}  •  {alg['info']}"
             policko = ttk.Checkbutton(mrizka, text=text, variable=promenna, command=self.aktualizuj_animovat)
-            # prvnich 6 vlevo, zbytek vpravo
-            policko.grid(row=i % 6, column=i // 6, sticky="w", padx=(0, 60))
+            # prvni 2 vlevo, dalsi 2 vpravo
+            policko.grid(row=i % 2, column=i // 2, sticky="w", padx=(0, 60))
 
         # tlacitka
         radek = ttk.Frame(ramecek)
