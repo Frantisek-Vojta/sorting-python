@@ -3,19 +3,19 @@
 # kazdy algoritmus dostane seznam "data" a seradi ho primo (zmeni ho),
 # nic nevraci - stejne jako list.sort() v pythonu
 #
-# navic muze dostat seznam "kroky" - do nej si zapisuje co zrovna dela,
-# z toho se pak dela animace. kdyz kroky nedostane (je None), nic nezapisuje,
-# takze funkce jdou pouzit i samostatne, napr. bubble_sort(muj_seznam)
+# navic muze dostat seznam "steps" - do nej si zapisuje co zrovna dela,
+# z toho se pak dela animace. kdyz steps nedostane (je None), nic nezapisuje,
+# takze funkce jdou pouzit i samostatne, napr. bubble_sort(my_list)
 
 
-def zapis(kroky, data, aktivni, popis):
+def record_step(steps, data, active, label):
     # kdyz nechceme animaci, tak nic nezapisujeme
-    if kroky is not None:
+    if steps is not None:
         # ulozime kopii seznamu, jake prvky jsou zrovna aktivni a co se deje
-        kroky.append((data.copy(), aktivni, popis))
+        steps.append((data.copy(), active, label))
 
 
-def prohod(data, a, b):
+def swap(data, a, b):
     # prohodi dva prvky v seznamu
     data[a], data[b] = data[b], data[a]
 
@@ -39,21 +39,21 @@ def prohod(data, a, b):
 # slozitost: O(n^2) porovnani, kdyz uz je seznam serazeny tak jen O(n) (jeden pruchod)
 # stabilni (stejne prvky si nevymeni poradi), nepotrebuje pomocnou pamet
 
-def bubble_sort(data, kroky=None):
+def bubble_sort(data, steps=None):
     n = len(data)
     # kazdy pruchod da na konec jeden prvek, takze staci n - 1 pruchodu
     for i in range(n - 1):
-        prohozeno = False
+        swapped = False
         # poslednich i prvku uz je serazenych, ty neporovnavame
         for j in range(n - 1 - i):
-            zapis(kroky, data, [j, j + 1], "Porovnání sousedů")
+            record_step(steps, data, [j, j + 1], "Porovnání sousedů")
             # levy soused je vetsi -> spatne poradi, prohodime je
             if data[j] > data[j + 1]:
-                prohod(data, j, j + 1)
-                prohozeno = True
-                zapis(kroky, data, [j, j + 1], "Výměna")
+                swap(data, j, j + 1)
+                swapped = True
+                record_step(steps, data, [j, j + 1], "Výměna")
         # kdyz jsme za cely pruchod nic neprohodili, je hotovo
-        if not prohozeno:
+        if not swapped:
             break
 
 
@@ -78,20 +78,20 @@ def bubble_sort(data, kroky=None):
 # nestabilni (vymena na dlouhou vzdalenost muze preskocit stejny prvek),
 # nepotrebuje pomocnou pamet
 
-def selection_sort(data, kroky=None):
+def selection_sort(data, steps=None):
     n = len(data)
     # i = prvni pozice neserazene casti, vse pred ni uz je serazene
     for i in range(n - 1):
         # najdeme nejmensi prvek ve zbytku seznamu (od i do konce)
         # zatim predpokladame, ze nejmensi je hned ten prvni
-        nejmensi = i
+        smallest = i
         for j in range(i + 1, n):
-            zapis(kroky, data, [nejmensi, j], "Hledání nejmenšího")
-            if data[j] < data[nejmensi]:
-                nejmensi = j
+            record_step(steps, data, [smallest, j], "Hledání nejmenšího")
+            if data[j] < data[smallest]:
+                smallest = j
         # a dame ho na pozici i - tim se serazena cast prodlouzi o jeden prvek
-        prohod(data, i, nejmensi)
-        zapis(kroky, data, [i, nejmensi], "Nejmenší jde dopředu")
+        swap(data, i, smallest)
+        record_step(steps, data, [i, smallest], "Nejmenší jde dopředu")
 
 
 # ---------- merge sort (trideni slevanim) ----------
@@ -117,36 +117,36 @@ def selection_sort(data, kroky=None):
 # stabilni (pri shode bereme prvek z leve poloviny),
 # ale potrebuje pomocnou pamet O(n) na kopie polovin
 
-def merge_sort(data, kroky=None, zacatek=0, konec=None):
-    # tridime cast seznamu od "zacatek" do "konec" (konec uz tam nepatri)
-    if konec is None:
-        konec = len(data)
+def merge_sort(data, steps=None, start=0, end=None):
+    # tridime cast seznamu od "start" do "end" (end uz tam nepatri)
+    if end is None:
+        end = len(data)
     # cast s jednim (nebo zadnym) prvkem je uz serazena - tady rekurze konci
-    if konec - zacatek <= 1:
+    if end - start <= 1:
         return
 
     # 1. a 2. krok: rozdelime na dve poloviny a kazdou seradime zvlast
-    stred = (zacatek + konec) // 2
-    merge_sort(data, kroky, zacatek, stred)
-    merge_sort(data, kroky, stred, konec)
+    mid = (start + end) // 2
+    merge_sort(data, steps, start, mid)
+    merge_sort(data, steps, mid, end)
 
     # 3. krok: slijeme dve serazene poloviny dohromady
     # udelame si jejich kopie, protoze do "data" budeme prepisovat vysledek
-    levy = data[zacatek:stred]
-    pravy = data[stred:konec]
-    i = 0          # kde jsme v leve polovine
-    j = 0          # kde jsme v prave polovine
-    k = zacatek    # kam v "data" zapiseme dalsi prvek
-    while i < len(levy) or j < len(pravy):
+    left = data[start:mid]
+    right = data[mid:end]
+    i = 0        # kde jsme v leve polovine
+    j = 0        # kde jsme v prave polovine
+    k = start    # kam v "data" zapiseme dalsi prvek
+    while i < len(left) or j < len(right):
         # bereme mensi z obou polovin (nebo co zbyva, kdyz je jedna uz prazdna)
         # "<=" znamena, ze pri shode bereme z leve - proto je trideni stabilni
-        if j >= len(pravy) or (i < len(levy) and levy[i] <= pravy[j]):
-            data[k] = levy[i]
+        if j >= len(right) or (i < len(left) and left[i] <= right[j]):
+            data[k] = left[i]
             i += 1
         else:
-            data[k] = pravy[j]
+            data[k] = right[j]
             j += 1
-        zapis(kroky, data, [k], "Slévání dvou polovin")
+        record_step(steps, data, [k], "Slévání dvou polovin")
         k += 1
 
 
@@ -164,7 +164,7 @@ def merge_sort(data, kroky=None, zacatek=0, konec=None):
 #
 # jak presne funguje rozdeleni (Lomutovo schema):
 # - pivot si odlozime na konec, aby nam neprekazel
-# - "hranice" ukazuje, kam patri dalsi prvek mensi nez pivot
+# - "boundary" (hranice) ukazuje, kam patri dalsi prvek mensi nez pivot
 # - projdeme vsechny prvky; kdyz je prvek mensi nez pivot,
 #   prohodime ho na hranici a hranici posuneme o 1 doprava
 # - nakonec prohodime pivot z konce na hranici
@@ -180,87 +180,87 @@ def merge_sort(data, kroky=None, zacatek=0, konec=None):
 # prostredni pivot funguje dobre i na uz serazenych datech
 # nestabilni, nepotrebuje pomocnou pamet (jen zasobnik na rekurzi)
 
-def quick_sort(data, kroky=None, zacatek=0, konec=None):
-    # tridime cast seznamu od "zacatek" do "konec" (tady konec uz patri)
-    if konec is None:
-        konec = len(data) - 1
+def quick_sort(data, steps=None, start=0, end=None):
+    # tridime cast seznamu od "start" do "end" (tady end uz patri)
+    if end is None:
+        end = len(data) - 1
     # cast s jednim (nebo zadnym) prvkem je uz serazena - tady rekurze konci
-    if zacatek >= konec:
+    if start >= end:
         return
 
     # pivot vezmeme z prostredka a dame ho na konec
-    stred = (zacatek + konec) // 2
-    prohod(data, stred, konec)
-    pivot = data[konec]
+    mid = (start + end) // 2
+    swap(data, mid, end)
+    pivot = data[end]
 
     # vsechno mensi nez pivot presuneme doleva
-    # vlevo od "hranice" jsou jen prvky mensi nez pivot
-    hranice = zacatek
-    for i in range(zacatek, konec):
-        zapis(kroky, data, [i, konec], "Porovnání s pivotem")
+    # vlevo od "boundary" jsou jen prvky mensi nez pivot
+    boundary = start
+    for i in range(start, end):
+        record_step(steps, data, [i, end], "Porovnání s pivotem")
         if data[i] < pivot:
-            prohod(data, i, hranice)
-            zapis(kroky, data, [i, hranice], "Menší jde doleva")
-            hranice += 1
+            swap(data, i, boundary)
+            record_step(steps, data, [i, boundary], "Menší jde doleva")
+            boundary += 1
 
     # pivot dame mezi mensi a vetsi - tim je na svem konecnem miste
-    prohod(data, hranice, konec)
-    zapis(kroky, data, [hranice], "Pivot je na svém místě")
+    swap(data, boundary, end)
+    record_step(steps, data, [boundary], "Pivot je na svém místě")
 
     # to same udelame pro levou a pravou cast (pivot uz nepocitame)
-    quick_sort(data, kroky, zacatek, hranice - 1)
-    quick_sort(data, kroky, hranice + 1, konec)
+    quick_sort(data, steps, start, boundary - 1)
+    quick_sort(data, steps, boundary + 1, end)
 
 
 # seznam vsech algoritmu, podle nej se dela okno
-# "pomaly" = O(n^2), ty pustime jen na mene datech
-ALGORITMY = [
+# "slow" = O(n^2), ty pustime jen na mene datech
+ALGORITHMS = [
     {
-        "nazev": "Bubble sort",
-        "funkce": bubble_sort,
+        "name": "Bubble sort",
+        "func": bubble_sort,
         "info": "O(n²), stabilní",
-        "pomaly": True,
-        "popis": "Porovnává sousední prvky a vymění je, pokud jsou ve špatném pořadí. "
-                 "Po každém průchodu je největší zbývající hodnota na konci. "
-                 "Průchody se opakují, dokud už není potřeba žádná výměna.",
+        "slow": True,
+        "description": "Porovnává sousední prvky a vymění je, pokud jsou ve špatném pořadí. "
+                       "Po každém průchodu je největší zbývající hodnota na konci. "
+                       "Průchody se opakují, dokud už není potřeba žádná výměna.",
     },
     {
-        "nazev": "Quick sort",
-        "funkce": quick_sort,
+        "name": "Quick sort",
+        "func": quick_sort,
         "info": "průměr O(n log n), až O(n²), nestabilní",
-        "pomaly": False,
-        "popis": "Vybere pivot (tady prostřední prvek). Menší prvky dá doleva, větší doprava "
-                 "a pivot mezi ně - tím je pivot na svém místě. "
-                 "Pak stejně seřadí levou a pravou část.",
+        "slow": False,
+        "description": "Vybere pivot (tady prostřední prvek). Menší prvky dá doleva, větší doprava "
+                       "a pivot mezi ně - tím je pivot na svém místě. "
+                       "Pak stejně seřadí levou a pravou část.",
     },
     {
-        "nazev": "Merge sort",
-        "funkce": merge_sort,
+        "name": "Merge sort",
+        "func": merge_sort,
         "info": "O(n log n), stabilní",
-        "pomaly": False,
-        "popis": "Rozdělí seznam na dvě poloviny, každou seřadí (stejným způsobem) "
-                 "a pak obě seřazené poloviny slije dohromady tak, "
-                 "že vždy vezme menší z prvních prvků.",
+        "slow": False,
+        "description": "Rozdělí seznam na dvě poloviny, každou seřadí (stejným způsobem) "
+                       "a pak obě seřazené poloviny slije dohromady tak, "
+                       "že vždy vezme menší z prvních prvků.",
     },
     {
-        "nazev": "Selection sort",
-        "funkce": selection_sort,
+        "name": "Selection sort",
+        "func": selection_sort,
         "info": "O(n²), nestabilní",
-        "pomaly": True,
-        "popis": "Najde nejmenší prvek v neseřazené části a prohodí ho s prvním prvkem "
-                 "této části. Seřazená část vlevo tak roste o jeden prvek za průchod.",
+        "slow": True,
+        "description": "Najde nejmenší prvek v neseřazené části a prohodí ho s prvním prvkem "
+                       "této části. Seřazená část vlevo tak roste o jeden prvek za průchod.",
     },
 ]
 
 
-# kratka ukazka, kdyz se tento soubor spusti samostatne: python algoritmy.py
+# kratka ukazka, kdyz se tento soubor spusti samostatne: python algorithms.py
 # (kdyz ho importuje main.py, tahle cast se nespusti)
 if __name__ == "__main__":
     import random
 
-    for alg in ALGORITMY:
-        cisla = [random.randint(-100, 100) for _ in range(12)]
-        print(alg["nazev"])
-        print("  před:", cisla)
-        alg["funkce"](cisla)
-        print("  po:  ", cisla)
+    for alg in ALGORITHMS:
+        numbers = [random.randint(-100, 100) for _ in range(12)]
+        print(alg["name"])
+        print("  před:", numbers)
+        alg["func"](numbers)
+        print("  po:  ", numbers)
