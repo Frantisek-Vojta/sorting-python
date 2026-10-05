@@ -1,387 +1,372 @@
-# hlavni okno tridici aplikace
+# tridici algoritmy: bubble sort, quick sort, merge sort a selection sort
+#
+# soubor ma dve casti:
+# 1. tridici algoritmy - ctyri funkce, u kazde je popsany princip
+# 2. jednoduche okno - zadas cisla, vyberes algoritmus a seradis je,
+#    nebo porovnas, ktery algoritmus je nejrychlejsi
+#
 # spusteni: python main.py
 
-import csv
 import random
-import statistics
 import sys
 import time
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-
-from algorithms import ALGORITHMS
-from animation import AnimationWindow
+from tkinter import ttk, messagebox
 
 # quick sort a merge sort volaji sami sebe, tak povolime vic volani v sobe
 sys.setrecursionlimit(100000)
 
-# pomale algoritmy O(n^2) pustime jen do tolika prvku
-MAX_FOR_SLOW = 3000
-# animace jen do tolika prvku
-MAX_FOR_ANIMATION = 100
 
-VALUE_TYPES = ["Automaticky", "Celá čísla", "Desetinná čísla", "Text"]
-ORDERS = ["Náhodně", "Seřazeně", "Obráceně", "Skoro seřazeně"]
+# ======================================================================
+# 1. TRIDICI ALGORITMY
+# ======================================================================
+# kazdy algoritmus dostane seznam "data" a seradi ho primo (zmeni ho),
+# nic nevraci - stejne jako list.sort() v pythonu
 
 
-def generate_data(count, seed, value_type, order):
-    # stejny seed = vzdycky stejna "nahodna" cisla
-    rng = random.Random(seed)
+def swap(data, a, b):
+    # prohodi dva prvky v seznamu
+    data[a], data[b] = data[b], data[a]
 
-    data = []
-    for _ in range(count):
-        if value_type == "Desetinná čísla":
-            data.append(round(rng.uniform(0, 1000), 2))
-        elif value_type == "Text":
-            # nahodne slovo z 5 pismen
-            word = ""
-            for _ in range(5):
-                word += rng.choice("abcdefghijklmnopqrstuvwxyz")
-            data.append(word)
+
+# ---------- bubble sort (bublinkove trideni) ----------
+#
+# princip:
+# - prochazime seznam zleva doprava a porovnavame vzdy dva SOUSEDNI prvky
+# - kdyz je levy vetsi nez pravy, jsou ve spatnem poradi a prohodime je
+# - nejvetsi prvek se tak pri kazdem porovnani posune o kus doprava,
+#   az "probubla" na konec seznamu (jako bublina, ktera stoupa nahoru)
+# - po 1. pruchodu je na konci nejvetsi prvek, po 2. pruchodu druhy nejvetsi atd.,
+#   proto muze byt kazdy dalsi pruchod o jeden prvek kratsi
+# - kdyz behem celeho pruchodu nic neprohodime, seznam uz je serazeny a koncime
+#
+# priklad: [5, 1, 4, 2]
+#   1. pruchod: 5>1 vymena, 5>4 vymena, 5>2 vymena -> [1, 4, 2, 5]  (5 je na miste)
+#   2. pruchod: 1<4 nic,    4>2 vymena            -> [1, 2, 4, 5]  (4 je na miste)
+#   3. pruchod: 1<2 nic -> zadna vymena, hotovo
+#
+# slozitost: O(n^2) porovnani, kdyz uz je seznam serazeny tak jen O(n) (jeden pruchod)
+# stabilni (stejne prvky si nevymeni poradi), nepotrebuje pomocnou pamet
+
+def bubble_sort(data):
+    n = len(data)
+    # kazdy pruchod da na konec jeden prvek, takze staci n - 1 pruchodu
+    for i in range(n - 1):
+        swapped = False
+        # poslednich i prvku uz je serazenych, ty neporovnavame
+        for j in range(n - 1 - i):
+            # levy soused je vetsi -> spatne poradi, prohodime je
+            if data[j] > data[j + 1]:
+                swap(data, j, j + 1)
+                swapped = True
+        # kdyz jsme za cely pruchod nic neprohodili, je hotovo
+        if not swapped:
+            break
+
+
+# ---------- selection sort (trideni vyberem) ----------
+#
+# princip:
+# - seznam si rozdelime na dve casti: vlevo SERAZENA (na zacatku prazdna)
+#   a vpravo NESERAZENA (na zacatku cely seznam)
+# - v neserazene casti najdeme nejmensi prvek - musime ji projit celou
+# - ten prohodime s prvnim prvkem neserazene casti
+#   -> nejmensi prvek je na svem konecnem miste a serazena cast se zvetsi o 1
+# - opakujeme, dokud v neserazene casti nezbude jen jeden prvek
+#   (ten uz je nutne nejvetsi, takze je taky na miste)
+#
+# priklad: [5, 1, 4, 2]
+#   nejmensi z [5, 1, 4, 2] je 1 -> prohodime s 5 -> [1 | 5, 4, 2]
+#   nejmensi z [5, 4, 2]    je 2 -> prohodime s 5 -> [1, 2 | 4, 5]
+#   nejmensi z [4, 5]       je 4 -> uz je na miste -> [1, 2, 4 | 5]  hotovo
+#
+# slozitost: vzdy O(n^2) porovnani (i kdyz je seznam uz serazeny),
+# ale nejvys n - 1 vymen
+# nestabilni (vymena na dlouhou vzdalenost muze preskocit stejny prvek),
+# nepotrebuje pomocnou pamet
+
+def selection_sort(data):
+    n = len(data)
+    # i = prvni pozice neserazene casti, vse pred ni uz je serazene
+    for i in range(n - 1):
+        # najdeme nejmensi prvek ve zbytku seznamu (od i do konce)
+        # zatim predpokladame, ze nejmensi je hned ten prvni
+        smallest = i
+        for j in range(i + 1, n):
+            if data[j] < data[smallest]:
+                smallest = j
+        # a dame ho na pozici i - tim se serazena cast prodlouzi o jeden prvek
+        swap(data, i, smallest)
+
+
+# ---------- merge sort (trideni slevanim) ----------
+#
+# princip "rozdel a panuj":
+# 1. ROZDEL: seznam rozdelime na dve poloviny
+# 2. VYRES:  kazdou polovinu seradime - uplne stejnym zpusobem, tedy funkce
+#            zavola sama sebe (rekurze). deleni konci, kdyz ma cast jen 1 prvek,
+#            protoze jeden prvek je serazeny sam od sebe
+# 3. SPOJ:   dve serazene poloviny slijeme (merge) do jedne serazene:
+#            divame se na prvni prvek obou polovin (je to jejich nejmensi prvek),
+#            mensi z nich vezmeme do vysledku a v jeho polovine se posuneme dal;
+#            opakujeme, dokud nevezmeme vsechny prvky
+#
+# priklad: [5, 1, 4, 2]
+#   deleni:   [5, 1, 4, 2] -> [5, 1] a [4, 2] -> [5] [1] [4] [2]
+#   slevani:  [5]+[1] -> [1, 5]      [4]+[2] -> [2, 4]
+#   slevani:  [1, 5]+[2, 4]: 1<2 vezmi 1, 2<5 vezmi 2, 4<5 vezmi 4, zbyva 5
+#             -> [1, 2, 4, 5]
+#
+# slozitost: vzdy O(n log n) - pulenim vznikne log n urovni
+# a na kazde urovni se dohromady slije n prvku
+# stabilni (pri shode bereme prvek z leve poloviny),
+# ale potrebuje pomocnou pamet O(n) na kopie polovin
+
+def merge_sort(data, start=0, end=None):
+    # tridime cast seznamu od "start" do "end" (end uz tam nepatri)
+    if end is None:
+        end = len(data)
+    # cast s jednim (nebo zadnym) prvkem je uz serazena - tady rekurze konci
+    if end - start <= 1:
+        return
+
+    # 1. a 2. krok: rozdelime na dve poloviny a kazdou seradime zvlast
+    mid = (start + end) // 2
+    merge_sort(data, start, mid)
+    merge_sort(data, mid, end)
+
+    # 3. krok: slijeme dve serazene poloviny dohromady
+    # udelame si jejich kopie, protoze do "data" budeme prepisovat vysledek
+    left = data[start:mid]
+    right = data[mid:end]
+    i = 0        # kde jsme v leve polovine
+    j = 0        # kde jsme v prave polovine
+    k = start    # kam v "data" zapiseme dalsi prvek
+    while i < len(left) or j < len(right):
+        # bereme mensi z obou polovin (nebo co zbyva, kdyz je jedna uz prazdna)
+        # "<=" znamena, ze pri shode bereme z leve - proto je trideni stabilni
+        if j >= len(right) or (i < len(left) and left[i] <= right[j]):
+            data[k] = left[i]
+            i += 1
         else:
-            data.append(rng.randint(0, 99999))
-
-    # upravime poradi
-    if order == "Seřazeně":
-        data.sort()
-    elif order == "Obráceně":
-        data.sort(reverse=True)
-    elif order == "Skoro seřazeně":
-        data.sort()
-        # prohodime par nahodnych dvojic
-        for _ in range(max(1, count // 20)):
-            a = rng.randrange(count)
-            b = rng.randrange(count)
-            data[a], data[b] = data[b], data[a]
-    return data
+            data[k] = right[j]
+            j += 1
+        k += 1
 
 
-def parse_text(text, value_type):
-    # carky a stredniky nahradime mezerou a rozdelime podle mezer a radku
-    text = text.replace(",", " ").replace(";", " ")
-    parts = text.split()
+# ---------- quick sort (rychle trideni) ----------
+#
+# princip taky "rozdel a panuj", ale hlavni prace se dela pri DELENI
+# (u merge sortu az pri spojovani):
+# 1. vybereme jeden prvek = PIVOT (tady prostredni prvek)
+# 2. ROZDELENI (partition): prvky mensi nez pivot presuneme doleva,
+#    ostatni zustanou vpravo a pivot dame presne mezi ne
+#    -> pivot je ted na sve konecne pozici a uz se nikdy nepohne
+# 3. stejnym zpusobem seradime levou cast a pravou cast (rekurze);
+#    cast s 0 nebo 1 prvkem je hotova. spojovat nic nemusime, vsechno uz
+#    je na spravnych mistech
+#
+# jak presne funguje rozdeleni (Lomutovo schema):
+# - pivot si odlozime na konec, aby nam neprekazel
+# - "boundary" (hranice) ukazuje, kam patri dalsi prvek mensi nez pivot
+# - projdeme vsechny prvky; kdyz je prvek mensi nez pivot,
+#   prohodime ho na hranici a hranici posuneme o 1 doprava
+# - nakonec prohodime pivot z konce na hranici
+#
+# priklad: [5, 1, 4, 2, 3], pivot = 4 (prostredni)
+#   rozdeleni: mensi nez 4 jsou 1, 2, 3 -> [1, 3, 2] 4 [5]
+#   leva cast [1, 3, 2] stejne: pivot 3 -> [1, 2] 3 []  ...  -> [1, 2, 3]
+#   prava cast [5] ma jeden prvek -> hotovo
+#   vysledek: [1, 2, 3, 4, 5]
+#
+# slozitost: prumerne O(n log n), nejhorsi O(n^2) - kdyz je pivot porad
+# nejmensi nebo nejvetsi prvek, deleni je pak uplne nerovnomerne.
+# prostredni pivot funguje dobre i na uz serazenych datech
+# nestabilni, nepotrebuje pomocnou pamet (jen zasobnik na rekurzi)
 
-    if value_type == "Celá čísla":
-        return [int(p) for p in parts], value_type
-    if value_type == "Desetinná čísla":
-        return [float(p) for p in parts], value_type
-    if value_type == "Text":
-        return parts, value_type
+def quick_sort(data, start=0, end=None):
+    # tridime cast seznamu od "start" do "end" (tady end uz patri)
+    if end is None:
+        end = len(data) - 1
+    # cast s jednim (nebo zadnym) prvkem je uz serazena - tady rekurze konci
+    if start >= end:
+        return
 
-    # automaticky: zkusime cela cisla, pak desetinna, jinak text
-    try:
-        return [int(p) for p in parts], "Celá čísla"
-    except ValueError:
-        pass
-    try:
-        return [float(p) for p in parts], "Desetinná čísla"
-    except ValueError:
-        pass
-    return parts, "Text"
+    # pivot vezmeme z prostredka a dame ho na konec
+    mid = (start + end) // 2
+    swap(data, mid, end)
+    pivot = data[end]
+
+    # vsechno mensi nez pivot presuneme doleva
+    # vlevo od "boundary" jsou jen prvky mensi nez pivot
+    boundary = start
+    for i in range(start, end):
+        if data[i] < pivot:
+            swap(data, i, boundary)
+            boundary += 1
+
+    # pivot dame mezi mensi a vetsi - tim je na svem konecnem miste
+    swap(data, boundary, end)
+
+    # to same udelame pro levou a pravou cast (pivot uz nepocitame)
+    quick_sort(data, start, boundary - 1)
+    quick_sort(data, boundary + 1, end)
+
+
+# algoritmy, ze kterych se vybira v okne: nazev -> funkce
+ALGORITHMS = {
+    "Bubble sort": bubble_sort,
+    "Quick sort": quick_sort,
+    "Merge sort": merge_sort,
+    "Selection sort": selection_sort,
+}
+
+
+# ======================================================================
+# 2. OKNO APLIKACE
+# ======================================================================
+
+# vic cisel nedovolime - bubble sort by na nich trval moc dlouho
+MAX_COUNT = 5000
+# kolik cisel z vysledku vypiseme, zbytek se jen spocita
+MAX_SHOWN = 30
+
+
+def parse_numbers(text):
+    # cisla jsou oddelena mezerami nebo carkami, desetinna cisla pisou s teckou
+    # kdyz neco neni cislo, float() vyhodi ValueError
+    numbers = []
+    for part in text.replace(",", " ").split():
+        try:
+            numbers.append(int(part))
+        except ValueError:
+            numbers.append(float(part))
+    return numbers
+
+
+def format_numbers(numbers):
+    # vypise prvnich MAX_SHOWN cisel, u delsiho seznamu napise, kolik jich je celkem
+    text = " ".join(str(n) for n in numbers[:MAX_SHOWN])
+    if len(numbers) > MAX_SHOWN:
+        text += f" … (celkem {len(numbers)} čísel)"
+    return text
+
+
+def compare_speed(numbers):
+    # kazdy algoritmus seradi svoji kopii stejnych cisel a zmerime, jak dlouho to trvalo
+    times = []
+    for name, func in ALGORITHMS.items():
+        copy = numbers.copy()
+        t_start = time.perf_counter()
+        func(copy)
+        t_end = time.perf_counter()
+        times.append(((t_end - t_start) * 1000, name))  # cas v milisekundach a nazev
+    # dvojice (cas, nazev) seradime nasim merge sortem - porovnavaji se podle casu,
+    # takze nejrychlejsi algoritmus bude prvni
+    merge_sort(times)
+    return times
 
 
 class App:
     def __init__(self, root):
         self.root = root
         self.root.title("SortApp")
-        self.root.geometry("1050x800")
 
-        self.data = []                # data, ktera budeme tridit
-        self.results = []             # vysledky posledniho porovnani
-        self.stop_requested = False   # nastavi tlacitko Zastavit
+        frame = ttk.Frame(root, padding=15)
+        frame.pack(fill="both", expand=True)
 
-        ttk.Label(root, text="SortApp", font=("", 20, "bold")).pack(anchor="w", padx=10, pady=(10, 0))
-        ttk.Label(root, text="Stejná data. Čtyři algoritmy. Porovnání skutečné doby třídění.").pack(anchor="w", padx=10)
+        ttk.Label(frame, text="SortApp", font=("", 18, "bold")).grid(row=0, column=0, columnspan=2, sticky="w")
 
-        self.build_data_section()
-        self.build_algorithms_section()
-        self.build_results_section()
+        # radek s cisly
+        ttk.Label(frame, text="Čísla:").grid(row=1, column=0, sticky="w", pady=(10, 0))
+        self.numbers_entry = ttk.Entry(frame, width=45)
+        self.numbers_entry.insert(0, "5 1 4 2 3")
+        self.numbers_entry.grid(row=1, column=1, sticky="we", padx=5, pady=(10, 0))
 
-        ttk.Label(root, text=f"Pomalé metody O(n²): max. {MAX_FOR_SLOW} prvků. "
-                             f"Animace: jeden algoritmus a max. {MAX_FOR_ANIMATION} hodnot.").pack(anchor="w", padx=10)
-        self.status = ttk.Label(root, text="Připraveno.")
-        self.status.pack(anchor="w", padx=10, pady=(0, 10))
-
-        # na zacatku rovnou vygenerujeme data
-        self.generate()
-
-    # ---------- 1. cast: priprava dat ----------
-
-    def build_data_section(self):
-        frame = ttk.LabelFrame(self.root, text="1  Připravte data")
-        frame.pack(fill="x", padx=10, pady=5)
-
-        # radek 1: typ hodnot a nacteni souboru
+        # radek s nahodnymi cisly: kolik jich vygenerovat a tlacitko
+        ttk.Label(frame, text="Počet:").grid(row=2, column=0, sticky="w", pady=(5, 0))
         row = ttk.Frame(frame)
-        row.pack(fill="x", padx=5, pady=3)
-        ttk.Label(row, text="Typ hodnot").pack(side="left")
-        self.type_box = ttk.Combobox(row, values=VALUE_TYPES, state="readonly", width=18)
-        self.type_box.set("Automaticky")
-        self.type_box.pack(side="left", padx=5)
-        ttk.Button(row, text="Načíst TXT / CSV...", command=self.load_file).pack(side="right")
+        row.grid(row=2, column=1, sticky="w", padx=5, pady=(5, 0))
+        self.count_box = ttk.Spinbox(row, from_=1, to=MAX_COUNT, width=7)
+        self.count_box.set(1000)
+        self.count_box.pack(side="left")
+        ttk.Button(row, text="Náhodná", command=self.random_numbers).pack(side="left", padx=5)
 
-        # radek 2: generator
-        row = ttk.Frame(frame)
-        row.pack(fill="x", padx=5, pady=3)
-        ttk.Label(row, text="Počet").pack(side="left")
-        self.count_entry = ttk.Entry(row, width=10)
-        self.count_entry.insert(0, "1000")
-        self.count_entry.pack(side="left", padx=5)
-        ttk.Label(row, text="Seed").pack(side="left", padx=(15, 0))
-        self.seed_entry = ttk.Entry(row, width=10)
-        self.seed_entry.insert(0, "42")
-        self.seed_entry.pack(side="left", padx=5)
-        self.order_box = ttk.Combobox(row, values=ORDERS, state="readonly", width=16)
-        self.order_box.set("Náhodně")
-        self.order_box.pack(side="left", padx=15)
-        ttk.Button(row, text="Generovat data", command=self.generate).pack(side="left")
-
-        # radek 3: rucni vstup
-        ttk.Label(frame, text="Ruční vstup: mezery, nové řádky, čárky nebo středníky; desetinná čísla s tečkou.").pack(anchor="w", padx=5)
-        row = ttk.Frame(frame)
-        row.pack(fill="x", padx=5, pady=3)
-        self.manual_input = tk.Text(row, height=2)
-        self.manual_input.insert("1.0", "12 -5 8 0 12 3")
-        self.manual_input.pack(side="left", fill="x", expand=True)
-        ttk.Button(row, text="Použít ruční vstup", command=self.use_manual_input).pack(side="left", padx=5)
-
-        # informace o aktualnich datech
-        self.data_info = ttk.Label(frame, text="")
-        self.data_info.pack(anchor="w", padx=5, pady=3)
-
-    def set_data(self, data, description):
-        # sem prijdou nova data odkudkoliv (generator, soubor, rucne)
-        self.data = data
-        self.data_info.config(text=f"{len(data)} hodnot • {description}")
-        self.show_preview()
-        self.update_animate_button()
-
-    def generate(self):
-        try:
-            count = int(self.count_entry.get())
-            seed = int(self.seed_entry.get())
-        except ValueError:
-            messagebox.showerror("Chyba", "Počet a seed musí být celá čísla.")
-            return
-        if count < 1:
-            messagebox.showerror("Chyba", "Počet musí být aspoň 1.")
-            return
-
-        value_type = self.type_box.get()
-        if value_type == "Automaticky":
-            value_type = "Celá čísla"
-        data = generate_data(count, seed, value_type, self.order_box.get())
-        self.set_data(data, f"{value_type} • Generátor, seed {seed}, {self.order_box.get()}")
-
-    def use_manual_input(self):
-        self.load_from_text(self.manual_input.get("1.0", "end"), "Ruční vstup")
-
-    def load_file(self):
-        path = filedialog.askopenfilename(filetypes=[("Text a CSV", "*.txt *.csv"), ("Všechny soubory", "*")])
-        if not path:
-            return
-        with open(path, encoding="utf-8") as file:
-            text = file.read()
-        self.load_from_text(text, "Soubor " + path)
-
-    def load_from_text(self, text, source):
-        try:
-            data, value_type = parse_text(text, self.type_box.get())
-        except ValueError:
-            messagebox.showerror("Chyba", f"Některé hodnoty nejsou typu: {self.type_box.get()}")
-            return
-        if not data:
-            messagebox.showerror("Chyba", "Nejsou tam žádné hodnoty.")
-            return
-        self.set_data(data, f"{value_type} • {source}")
-
-    # ---------- 2. cast: vyber algoritmu ----------
-
-    def build_algorithms_section(self):
-        frame = ttk.LabelFrame(self.root, text="2  Vyberte algoritmy")
-        frame.pack(fill="x", padx=10, pady=5)
-
-        # zaskrtavatka v mrizce 2 x 2
-        grid = ttk.Frame(frame)
-        grid.pack(fill="x", padx=5, pady=3)
-        self.checked = []  # pro kazdy algoritmus jedna promenna True/False
-        for i, alg in enumerate(ALGORITHMS):
-            var = tk.BooleanVar(value=False)
-            self.checked.append(var)
-            text = f"{alg['name']}  •  {alg['info']}"
-            checkbox = ttk.Checkbutton(grid, text=text, variable=var, command=self.update_animate_button)
-            # prvni 2 vlevo, dalsi 2 vpravo
-            checkbox.grid(row=i % 2, column=i // 2, sticky="w", padx=(0, 60))
+        # vyber algoritmu - prepinace v mrizce 2 x 2
+        self.algorithm = tk.StringVar(value="Bubble sort")
+        choices = ttk.Frame(frame)
+        choices.grid(row=3, column=0, columnspan=2, sticky="w", pady=10)
+        for i, name in enumerate(ALGORITHMS):
+            ttk.Radiobutton(choices, text=name, value=name, variable=self.algorithm).grid(
+                row=i // 2, column=i % 2, sticky="w", padx=(0, 40))
 
         # tlacitka
         row = ttk.Frame(frame)
-        row.pack(fill="x", padx=5, pady=5)
-        ttk.Button(row, text="Vše", command=lambda: self.check_all(True)).pack(side="left")
-        ttk.Button(row, text="Nic", command=lambda: self.check_all(False)).pack(side="left", padx=5)
-        ttk.Label(row, text="Opakování (1–10):").pack(side="left", padx=(15, 5))
-        self.repeats = ttk.Spinbox(row, from_=1, to=10, width=4)
-        self.repeats.set(3)
-        self.repeats.pack(side="left")
-        self.compare_button = ttk.Button(row, text="Porovnat algoritmy", command=self.compare)
-        self.compare_button.pack(side="left", padx=(15, 5))
-        ttk.Button(row, text="Zastavit", command=self.stop).pack(side="left", padx=5)
-        self.animate_button = ttk.Button(row, text="Animovat", command=self.animate)
-        self.animate_button.pack(side="left", padx=5)
+        row.grid(row=4, column=0, columnspan=2, sticky="w")
+        ttk.Button(row, text="Seřadit", command=self.sort).pack(side="left")
+        ttk.Button(row, text="Porovnat rychlost", command=self.compare).pack(side="left", padx=5)
 
-    def selected_algorithms(self):
-        # vrati seznam algoritmu, ktere jsou zaskrtnute
-        selected = []
-        for i, alg in enumerate(ALGORITHMS):
-            if self.checked[i].get():
-                selected.append(alg)
-        return selected
+        # vysledek razeni a porovnani rychlosti
+        self.result = ttk.Label(frame, text="Výsledek:", wraplength=500)
+        self.result.grid(row=5, column=0, columnspan=2, sticky="w", pady=(10, 0))
+        self.speed = ttk.Label(frame, text="", justify="left")
+        self.speed.grid(row=6, column=0, columnspan=2, sticky="w", pady=(10, 0))
 
-    def check_all(self, value):
-        for var in self.checked:
-            var.set(value)
-        self.update_animate_button()
+    def random_numbers(self):
+        # vygeneruje zadany pocet nahodnych celych cisel od 0 do 99 999
+        try:
+            count = int(self.count_box.get())
+        except ValueError:
+            count = 0
+        if not 1 <= count <= MAX_COUNT:
+            messagebox.showerror("Chyba", f"Počet musí být celé číslo od 1 do {MAX_COUNT}.")
+            return
+        numbers = [random.randint(0, 99999) for _ in range(count)]
+        self.numbers_entry.delete(0, "end")
+        self.numbers_entry.insert(0, " ".join(str(n) for n in numbers))
 
-    def update_animate_button(self):
-        # animovat jde jen s jednim algoritmem a malo daty
-        if len(self.selected_algorithms()) == 1 and len(self.data) <= MAX_FOR_ANIMATION:
-            self.animate_button.config(state="normal")
-        else:
-            self.animate_button.config(state="disabled")
+    def read_numbers(self):
+        # precte cisla z policka; kdyz jsou spatne, ukaze chybu a vrati None
+        try:
+            numbers = parse_numbers(self.numbers_entry.get())
+        except ValueError:
+            messagebox.showerror("Chyba", "Zadejte čísla oddělená mezerou (desetinná čísla s tečkou).")
+            return None
+        if not numbers:
+            messagebox.showerror("Chyba", "Zadejte aspoň jedno číslo.")
+            return None
+        if len(numbers) > MAX_COUNT:
+            messagebox.showerror("Chyba", f"Zadejte nejvýš {MAX_COUNT} čísel.")
+            return None
+        return numbers
 
-    def animate(self):
-        algorithm = self.selected_algorithms()[0]
-        AnimationWindow(self.root, algorithm, self.data)
-
-    def stop(self):
-        self.stop_requested = True
+    def sort(self):
+        numbers = self.read_numbers()
+        if numbers is None:
+            return
+        # vybrany algoritmus seradi seznam primo, takze ho pak jen vypiseme
+        ALGORITHMS[self.algorithm.get()](numbers)
+        self.result.config(text="Výsledek: " + format_numbers(numbers))
 
     def compare(self):
-        selected = self.selected_algorithms()
-        if not selected:
-            messagebox.showinfo("Porovnání", "Vyberte aspoň jeden algoritmus.")
+        numbers = self.read_numbers()
+        if numbers is None:
             return
-        try:
-            repeats = int(self.repeats.get())
-        except ValueError:
-            repeats = 1
-        repeats = max(1, min(10, repeats))
+        # u vetsiho mnozstvi cisel to chvili trva, tak to napiseme do okna
+        self.speed.config(text="Měřím…")
+        self.root.update()
 
-        # spravny vysledek, podle nej kontrolujeme ostatni algoritmy
-        expected = sorted(self.data)
-
-        self.stop_requested = False
-        self.compare_button.config(state="disabled")
-        self.results = []
-
-        for alg in selected:
-            # pomale algoritmy na moc datech preskocime
-            if alg["slow"] and len(self.data) > MAX_FOR_SLOW:
-                self.results.append((alg["name"], None, None, None, "Přeskočeno (moc dat)"))
-                continue
-
-            times = []
-            for _ in range(repeats):
-                self.status.config(text=f"Třídím: {alg['name']} ({len(times) + 1}/{repeats})...")
-                # prekreslime okno, aby slo kliknout na Zastavit
-                self.root.update()
-                if self.stop_requested:
-                    break
-
-                # kazdy beh dostane kopii stejnych dat
-                copy = self.data.copy()
-                t_start = time.perf_counter()
-                alg["func"](copy)
-                t_end = time.perf_counter()
-                times.append((t_end - t_start) * 1000)  # v milisekundach
-
-            if self.stop_requested:
-                break
-
-            # zkontrolujeme, jestli algoritmus opravdu seradil spravne
-            status = "Ověřeno" if copy == expected else "CHYBA"
-            self.results.append((alg["name"], statistics.median(times), min(times), max(times), status))
-
-        self.compare_button.config(state="normal")
-        self.show_results()
-        if self.stop_requested:
-            self.status.config(text="Zastaveno. Zobrazeny jen dokončené algoritmy.")
-        else:
-            self.status.config(text="Hotovo.")
-
-    # ---------- 3. cast: vysledky ----------
-
-    def build_results_section(self):
-        tabs = ttk.Notebook(self.root)
-        tabs.pack(fill="both", expand=True, padx=10, pady=5)
-
-        # zalozka s tabulkou casu
-        page = ttk.Frame(tabs)
-        tabs.add(page, text="3  Porovnání časů")
-        columns = ("algorithm", "median", "minimum", "maximum", "status")
-        self.table = ttk.Treeview(page, columns=columns, show="headings", height=8)
-        headings = ["Algoritmus", "Medián (ms)", "Minimum (ms)", "Maximum (ms)", "Stav"]
-        for column, heading in zip(columns, headings):
-            self.table.heading(column, text=heading)
-            self.table.column(column, width=150, anchor="e")
-        self.table.column("algorithm", anchor="w")
-        self.table.column("status", anchor="w")
-        self.table.pack(fill="both", expand=True, padx=5, pady=5)
-
-        self.fastest_label = ttk.Label(page, text="")
-        self.fastest_label.pack(anchor="w", padx=5)
-        ttk.Button(page, text="Export porovnání do CSV...", command=self.export_csv).pack(anchor="w", padx=5, pady=5)
-
-        # zalozka s nahledem dat
-        page = ttk.Frame(tabs)
-        tabs.add(page, text="Náhled dat")
-        self.preview = tk.Text(page, height=8, wrap="word")
-        self.preview.pack(fill="both", expand=True, padx=5, pady=5)
-
-    def show_preview(self):
-        # ukazeme prvnich 500 hodnot, vic by bylo zbytecne
-        self.preview.delete("1.0", "end")
-        text = " ".join(str(v) for v in self.data[:500])
-        if len(self.data) > 500:
-            text += f" ... (a dalších {len(self.data) - 500})"
-        self.preview.insert("1.0", text)
-
-    def show_results(self):
-        # smazeme starou tabulku
-        for row in self.table.get_children():
-            self.table.delete(row)
-
-        # nejdriv ty s casem (od nejrychlejsiho), preskocene na konec
-        timed = [r for r in self.results if r[1] is not None]
-        untimed = [r for r in self.results if r[1] is None]
-        timed.sort(key=lambda r: r[1])
-
-        for name, median, minimum, maximum, status in timed:
-            self.table.insert("", "end", values=(name, f"{median:.6f}", f"{minimum:.6f}", f"{maximum:.6f}", status))
-        for name, _, _, _, status in untimed:
-            self.table.insert("", "end", values=(name, "-", "-", "-", status))
-
-        if timed:
-            name, median = timed[0][0], timed[0][1]
-            self.fastest_label.config(text=f"Nejrychlejší v tomto měření: {name} — {median:.6f} ms (medián).")
-        else:
-            self.fastest_label.config(text="")
-
-    def export_csv(self):
-        if not self.results:
-            messagebox.showinfo("Export", "Nejdřív spusťte porovnání.")
-            return
-        path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV", "*.csv")])
-        if not path:
-            return
-        with open(path, "w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file, delimiter=";")
-            writer.writerow(["Algoritmus", "Median (ms)", "Minimum (ms)", "Maximum (ms)", "Stav"])
-            for row in self.results:
-                writer.writerow(row)
-        self.status.config(text="Uloženo do " + path)
+        times = compare_speed(numbers)
+        lines = [f"Porovnání rychlosti ({len(numbers)} čísel), od nejrychlejšího:"]
+        for rank, (ms, name) in enumerate(times, start=1):
+            ms_text = f"{ms:.3f}".replace(".", ",")  # desetinna carka jako v cestine
+            lines.append(f"{rank}. {name} – {ms_text} ms")
+        lines.append(f"Nejrychlejší je {times[0][1]}.")
+        self.speed.config(text="\n".join(lines))
 
 
-# spusteni aplikace
-root = tk.Tk()
-App(root)
-root.mainloop()
+# spusteni aplikace (jen kdyz se soubor spusti, ne kdyz se importuje)
+if __name__ == "__main__":
+    root = tk.Tk()
+    App(root)
+    root.mainloop()
