@@ -1,7 +1,8 @@
-# tridici algoritmy: bubble sort, quick sort, merge sort a selection sort
+# tridici algoritmy: bubble sort, quick sort, merge sort, selection sort,
+# insertion sort a heap sort
 #
 # soubor ma dve casti:
-# 1. tridici algoritmy - ctyri funkce, u kazde je popsany princip
+# 1. tridici algoritmy - sest funkci, u kazde je popsany princip
 # 2. jednoduche okno - zadas cisla, vyberes algoritmus a seradis je,
 #    nebo porovnas, ktery algoritmus je nejrychlejsi
 #
@@ -97,6 +98,47 @@ def selection_sort(data):
                 smallest = j
         # a dame ho na pozici i - tim se serazena cast prodlouzi o jeden prvek
         swap(data, i, smallest)
+
+
+# ---------- insertion sort (trideni vkladanim) ----------
+#
+# princip (jako kdyz si radime karty v ruce):
+# - seznam si rozdelime na dve casti: vlevo SERAZENA (na zacatku jen prvni prvek,
+#   jeden prvek je serazeny sam od sebe) a vpravo NESERAZENA
+# - vezmeme prvni prvek neserazene casti ("do ruky", promenna current)
+# - serazenou cast prochazime zprava doleva a kazdy prvek, ktery je VETSI
+#   nez current, posuneme o jedno misto doprava - tim se uvolni misto
+# - jakmile narazime na prvek mensi nebo stejny (nebo na zacatek seznamu),
+#   vlozime current na uvolnene misto
+# - serazena cast se tak zvetsi o 1; opakujeme, dokud neni serazeny cely seznam
+# - rozdil oproti selection sortu: prvky v serazene casti jeste NEJSOU na svem
+#   konecnem miste, dalsi vkladany prvek je muze posunout doprava
+#
+# priklad: [5, 1, 4, 2]
+#   [5 | 1, 4, 2]  vezmi 1: 5 > 1 posun         -> vloz na zacatek -> [1, 5 | 4, 2]
+#   [1, 5 | 4, 2]  vezmi 4: 5 > 4 posun, 1 < 4   -> vloz za 1       -> [1, 4, 5 | 2]
+#   [1, 4, 5 | 2]  vezmi 2: 5 a 4 posun, 1 < 2  -> vloz za 1       -> [1, 2, 4, 5]
+#
+# slozitost: O(n^2) porovnani (obracene serazeny seznam - kazdy prvek jde az
+# na zacatek), kdyz uz je seznam serazeny tak jen O(n) - nic se neposouva
+# stabilni (posouvame jen ostre vetsi prvky, stejny prvek nepreskocime),
+# nepotrebuje pomocnou pamet
+
+def insertion_sort(data):
+    # prvni prvek je serazeny sam od sebe, zaciname od druheho
+    for i in range(1, len(data)):
+        # prvek, ktery zarazujeme - vezmeme si ho "do ruky"
+        current = data[i]
+        # j jde serazenou casti zprava doleva
+        j = i - 1
+        # vetsi prvky posouvame o jedno doprava, tim se misto pro current
+        # posouva doleva (current mezitim prepiseme, ale mame ho v promenne)
+        while j >= 0 and data[j] > current:
+            data[j + 1] = data[j]
+            j -= 1
+        # data[j] je mensi nebo stejny (nebo uz jsme pred zacatkem seznamu),
+        # takze current patri hned za nej
+        data[j + 1] = current
 
 
 # ---------- merge sort (trideni slevanim) ----------
@@ -213,12 +255,91 @@ def quick_sort(data, start=0, end=None):
     quick_sort(data, boundary + 1, end)
 
 
+# ---------- heap sort (trideni haldou) ----------
+#
+# HALDA (heap) je binarni strom, kde je kazdy rodic VETSI nebo stejny nez oba
+# jeho potomci -> nejvetsi prvek celeho stromu je vzdy nahore v koreni
+#
+# strom nemusime nikde stavet, ulozime ho primo do seznamu:
+# - koren je na indexu 0
+# - potomci prvku na indexu i jsou na indexech 2*i + 1 (levy) a 2*i + 2 (pravy)
+# - strom se tak plni po patrech zleva doprava
+#
+#   seznam [5, 3, 4, 2, 1] jako strom:        5          index 0
+#                                           /   \
+#                                          3     4       indexy 1, 2
+#                                         / \
+#                                        2   1           indexy 3, 4
+#
+# PROSETI (heapify): kdyz je nejaky rodic mensi nez jeho potomek, prohodime ho
+# s VETSIM z potomku a pokracujeme o patro niz, dokud neni vetsi nez oba potomci
+# (nebo uz zadne potomky nema) - prvek tak "propadne" na sve misto
+#
+# princip heap sortu ma dve faze:
+# 1. STAVBA HALDY: proseveme vsechny prvky, ktere maji potomky, odspodu nahoru
+#    (od indexu n // 2 - 1 k indexu 0); listy dole jsou haldou samy o sobe
+# 2. VYBIRANI: nejvetsi prvek je v koreni, tak ho prohodime s poslednim prvkem
+#    haldy -> nejvetsi je na konci seznamu na svem konecnem miste a halda se
+#    zmensi o 1. novy koren muze byt maly, proto ho proseveme dolu.
+#    opakujeme, dokud v halde nezbude jeden prvek
+#    (podobne jako selection sort, jen nejvetsi prvek nehledame pruchodem celym
+#    seznamem, ale mame ho hned v koreni)
+#
+# priklad: [5, 1, 4, 2, 3]
+#   stavba:  proseti indexu 1 (hodnota 1): vetsi potomek je 3 -> [5, 3, 4, 2, 1]
+#            proseti indexu 0 (hodnota 5): je vetsi nez 3 i 4 -> halda hotova
+#   vybirani: 5 <-> 1, proseti 1 -> [4, 3, 1, 2 | 5]
+#             4 <-> 2, proseti 2 -> [3, 2, 1 | 4, 5]
+#             3 <-> 1, proseti 1 -> [2, 1 | 3, 4, 5]
+#             2 <-> 1            -> [1 | 2, 3, 4, 5]  hotovo
+#
+# slozitost: vzdy O(n log n) - halda ma log n pater, takze jedno proseti
+# udela nejvys log n vymen, a prosevame n krat
+# nestabilni (vymeny na dlouhou vzdalenost), nepotrebuje pomocnou pamet
+
+def heapify(data, root, end):
+    # proseje prvek na indexu "root" dolu haldou
+    # halda jsou prvky od 0 do "end" (end uz tam nepatri, to je serazena cast)
+    while True:
+        largest = root
+        left = 2 * root + 1
+        right = 2 * root + 2
+        # najdeme nejvetsi z trojice rodic, levy potomek, pravy potomek
+        # (potomek s indexem >= end neexistuje nebo uz do haldy nepatri)
+        if left < end and data[left] > data[largest]:
+            largest = left
+        if right < end and data[right] > data[largest]:
+            largest = right
+        # rodic je vetsi nez oba potomci -> prvek je na svem miste, konec
+        if largest == root:
+            return
+        # jinak rodice prohodime s vetsim potomkem a pokracujeme o patro niz
+        swap(data, root, largest)
+        root = largest
+
+
+def heap_sort(data):
+    n = len(data)
+    # 1. faze: stavba haldy - prvky s potomky proseveme odspodu nahoru,
+    # takze kdyz prosevame rodice, jeho podstromy uz jsou haldy
+    for i in range(n // 2 - 1, -1, -1):
+        heapify(data, i, n)
+    # 2. faze: "end" je posledni prvek haldy, za nim je serazena cast
+    for end in range(n - 1, 0, -1):
+        # nejvetsi prvek haldy (koren) dame na konec - tam uz zustane
+        swap(data, 0, end)
+        # halda je ted o 1 mensi (konci pred "end"), novy koren proseveme
+        heapify(data, 0, end)
+
+
 # algoritmy, ze kterych se vybira v okne: nazev -> funkce
 ALGORITHMS = {
     "Bubble sort": bubble_sort,
     "Quick sort": quick_sort,
     "Merge sort": merge_sort,
     "Selection sort": selection_sort,
+    "Insertion sort": insertion_sort,
+    "Heap sort": heap_sort,
 }
 
 
@@ -292,7 +413,7 @@ class App:
         self.count_box.pack(side="left")
         ttk.Button(row, text="Náhodná", command=self.random_numbers).pack(side="left", padx=5)
 
-        # vyber algoritmu - prepinace v mrizce 2 x 2
+        # vyber algoritmu - prepinace ve dvou sloupcich
         self.algorithm = tk.StringVar(value="Bubble sort")
         choices = ttk.Frame(frame)
         choices.grid(row=3, column=0, columnspan=2, sticky="w", pady=10)
