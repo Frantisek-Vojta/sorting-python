@@ -12,7 +12,7 @@ import random
 import sys
 import time
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 
 # quick sort a merge sort volaji sami sebe, tak povolime vic volani v sobe
 sys.setrecursionlimit(100000)
@@ -353,6 +353,20 @@ MAX_COUNT = 5000
 MAX_SHOWN = 30
 
 
+def load_numbers_from_file(file_path):
+    # nacte cela cisla z textoveho souboru (.txt)
+    # cisla mohou byt na radcich, oddelena mezerami nebo carkami
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    numbers = []
+    # rozdelime text podle bilych znaku (mezery, nove radky) i carek
+    for part in content.replace(",", " ").split():
+        # zadani vyzaduje cela cisla, takze prevadime pomoci int()
+        numbers.append(int(part))
+    return numbers
+
+
 def parse_numbers(text):
     # cisla jsou oddelena mezerami nebo carkami, desetinna cisla pisou s teckou
     # kdyz neco neni cislo, float() vyhodi ValueError
@@ -412,6 +426,7 @@ class App:
         self.count_box.set(1000)
         self.count_box.pack(side="left")
         ttk.Button(row, text="Náhodná", command=self.random_numbers).pack(side="left", padx=5)
+        ttk.Button(row, text="Načíst ze souboru", command=self.load_from_file).pack(side="left", padx=5)
 
         # vyber algoritmu - prepinace ve dvou sloupcich
         self.algorithm = tk.StringVar(value="Bubble sort")
@@ -443,6 +458,37 @@ class App:
             messagebox.showerror("Chyba", f"Počet musí být celé číslo od 1 do {MAX_COUNT}.")
             return
         numbers = [random.randint(0, 99999) for _ in range(count)]
+        self.numbers_entry.delete(0, "end")
+        self.numbers_entry.insert(0, " ".join(str(n) for n in numbers))
+
+    def load_from_file(self):
+        # otevre dialog pro vyber souboru (.txt)
+        file_path = filedialog.askopenfilename(
+            title="Vyberte textový soubor s čísly",
+            filetypes=[("Textové soubory", "*.txt"), ("Všechny soubory", "*.*")],
+        )
+        # kdyz uzivatel klikne na Storno, nic nedelame
+        if not file_path:
+            return
+
+        try:
+            numbers = load_numbers_from_file(file_path)
+        except ValueError:
+            messagebox.showerror("Chyba", "Soubor obsahuje neplatná data (musí obsahovat pouze celá čísla).")
+            return
+        except Exception as e:
+            messagebox.showerror("Chyba", f"Nepodařilo se načíst soubor:\n{e}")
+            return
+
+        if not numbers:
+            messagebox.showerror("Chyba", "Soubor je prázdný nebo neobsahuje žádná čísla.")
+            return
+
+        if len(numbers) > MAX_COUNT:
+            messagebox.showerror("Chyba", f"V souboru je {len(numbers)} čísel. Maximum je {MAX_COUNT}.")
+            return
+
+        # nactena cisla vlozime do policka v okne
         self.numbers_entry.delete(0, "end")
         self.numbers_entry.insert(0, " ".join(str(n) for n in numbers))
 
