@@ -3,11 +3,14 @@
 #
 # soubor ma dve casti:
 # 1. tridici algoritmy - sest funkci, u kazde je popsany princip
-# 2. jednoduche okno - zadas cisla, vyberes algoritmus a seradis je,
+# 2. jednoduche okno - zadas data nebo je nactes z .txt souboru (program pozna
+#    jejich typ a necha si ho potvrdit), vyberes algoritmus a seradis je,
 #    nebo porovnas, ktery algoritmus je nejrychlejsi
 #
 # spusteni: python main.py
 
+import math
+import os
 import random
 import sys
 import time
@@ -347,51 +350,79 @@ ALGORITHMS = {
 # 2. OKNO APLIKACE
 # ======================================================================
 
-# vic cisel nedovolime - bubble sort by na nich trval moc dlouho
+# vic polozek nedovolime - bubble sort by na nich trval moc dlouho
 MAX_COUNT = 5000
-# kolik cisel z vysledku vypiseme, zbytek se jen spocita
+# kolik polozek z vysledku vypiseme, zbytek se jen spocita
 MAX_SHOWN = 30
 
-
-def load_numbers_from_file(file_path):
-    # nacte cela cisla z textoveho souboru (.txt)
-    # cisla mohou byt na radcich, oddelena mezerami nebo carkami
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    numbers = []
-    # rozdelime text podle bilych znaku (mezery, nove radky) i carek
-    for part in content.replace(",", " ").split():
-        # zadani vyzaduje cela cisla, takze prevadime pomoci int()
-        numbers.append(int(part))
-    return numbers
+# typy dat, ktere program rozpozna
+TYPE_INT = "celá čísla"
+TYPE_FLOAT = "desetinná čísla"
+TYPE_TEXT = "text"
+TYPE_MIXED = "smíšená data"
 
 
-def parse_numbers(text):
-    # cisla jsou oddelena mezerami nebo carkami, desetinna cisla pisou s teckou
-    # kdyz neco neni cislo, float() vyhodi ValueError
-    numbers = []
-    for part in text.replace(",", " ").split():
-        try:
-            numbers.append(int(part))
-        except ValueError:
-            numbers.append(float(part))
-    return numbers
+def read_text_file(file_path):
+    # precte cely textovy soubor
+    # "utf-8-sig" navic zahodi neviditelnou znacku (BOM), kterou na zacatek
+    # pridava Poznamkovy blok - jinak by prvni cislo vypadalo jako text
+    try:
+        with open(file_path, "r", encoding="utf-8-sig") as f:
+            return f.read()
+    except UnicodeDecodeError:
+        # neni to utf-8, zkusime kodovani ceskych Windows
+        with open(file_path, "r", encoding="cp1250") as f:
+            return f.read()
 
 
-def format_numbers(numbers):
-    # vypise prvnich MAX_SHOWN cisel, u delsiho seznamu napise, kolik jich je celkem
-    text = " ".join(str(n) for n in numbers[:MAX_SHOWN])
-    if len(numbers) > MAX_SHOWN:
-        text += f" … (celkem {len(numbers)} čísel)"
+def convert_item(item):
+    # prevede jednu polozku na cele nebo desetinne cislo, jinak zustane textem
+    # int() i float() berou i "1_000", to za cislo nepovazujeme
+    if "_" in item:
+        return item
+    try:
+        return int(item)
+    except ValueError:
+        pass
+    try:
+        value = float(item)
+    except ValueError:
+        return item
+    # float() bere i slova jako "nan" nebo "inf", ta nechame jako text
+    return value if math.isfinite(value) else item
+
+
+def parse_data(text):
+    # z textu udela seznam hodnot a urci jejich typ, vrati dvojici (hodnoty, typ)
+    # polozky jsou oddelene mezerami, novymi radky, carkami nebo stredniky,
+    # desetinna cisla se pisou s teckou
+    items = text.replace(",", " ").replace(";", " ").split()
+    values = [convert_item(item) for item in items]
+
+    number_count = sum(1 for value in values if not isinstance(value, str))
+    if number_count == 0:
+        return values, TYPE_TEXT
+    if number_count < len(values):
+        # cisla s textem porovnat nejdou, proto se vsechno tridi jako text
+        return items, TYPE_MIXED
+    if all(isinstance(value, int) for value in values):
+        return values, TYPE_INT
+    return values, TYPE_FLOAT
+
+
+def format_values(values):
+    # vypise prvnich MAX_SHOWN polozek, u delsiho seznamu napise, kolik jich je celkem
+    text = " ".join(str(value) for value in values[:MAX_SHOWN])
+    if len(values) > MAX_SHOWN:
+        text += f" … (celkem {len(values)} položek)"
     return text
 
 
-def compare_speed(numbers):
-    # kazdy algoritmus seradi svoji kopii stejnych cisel a zmerime, jak dlouho to trvalo
+def compare_speed(values):
+    # kazdy algoritmus seradi svoji kopii stejnych dat a zmerime, jak dlouho to trvalo
     times = []
     for name, func in ALGORITHMS.items():
-        copy = numbers.copy()
+        copy = values.copy()
         t_start = time.perf_counter()
         func(copy)
         t_end = time.perf_counter()
@@ -412,11 +443,11 @@ class App:
 
         ttk.Label(frame, text="SortApp", font=("", 18, "bold")).grid(row=0, column=0, columnspan=2, sticky="w")
 
-        # radek s cisly
-        ttk.Label(frame, text="Čísla:").grid(row=1, column=0, sticky="w", pady=(10, 0))
-        self.numbers_entry = ttk.Entry(frame, width=45)
-        self.numbers_entry.insert(0, "5 1 4 2 3")
-        self.numbers_entry.grid(row=1, column=1, sticky="we", padx=5, pady=(10, 0))
+        # radek s daty
+        ttk.Label(frame, text="Data:").grid(row=1, column=0, sticky="w", pady=(10, 0))
+        self.data_entry = ttk.Entry(frame, width=45)
+        self.data_entry.insert(0, "5 1 4 2 3")
+        self.data_entry.grid(row=1, column=1, sticky="we", padx=5, pady=(10, 0))
 
         # radek s nahodnymi cisly: kolik jich vygenerovat a tlacitko
         ttk.Label(frame, text="Počet:").grid(row=2, column=0, sticky="w", pady=(5, 0))
@@ -458,73 +489,148 @@ class App:
             messagebox.showerror("Chyba", f"Počet musí být celé číslo od 1 do {MAX_COUNT}.")
             return
         numbers = [random.randint(0, 99999) for _ in range(count)]
-        self.numbers_entry.delete(0, "end")
-        self.numbers_entry.insert(0, " ".join(str(n) for n in numbers))
+        self.data_entry.delete(0, "end")
+        self.data_entry.insert(0, " ".join(str(n) for n in numbers))
 
     def load_from_file(self):
         # otevre dialog pro vyber souboru (.txt)
         file_path = filedialog.askopenfilename(
-            title="Vyberte textový soubor s čísly",
-            filetypes=[("Textové soubory", "*.txt"), ("Všechny soubory", "*.*")],
+            title="Vyberte textový soubor s daty",
+            filetypes=[("Textové soubory", "*.txt")],
         )
         # kdyz uzivatel klikne na Storno, nic nedelame
         if not file_path:
             return
 
-        try:
-            numbers = load_numbers_from_file(file_path)
-        except ValueError:
-            messagebox.showerror("Chyba", "Soubor obsahuje neplatná data (musí obsahovat pouze celá čísla).")
+        # v dialogu jde jmeno napsat i rucne, proto priponu jeste zkontrolujeme
+        if not file_path.lower().endswith(".txt"):
+            messagebox.showerror("Chyba", "Vyberte soubor ve formátu .txt.")
             return
-        except Exception as e:
+
+        try:
+            values, data_type = parse_data(read_text_file(file_path))
+        except (OSError, UnicodeError) as e:
             messagebox.showerror("Chyba", f"Nepodařilo se načíst soubor:\n{e}")
             return
 
-        if not numbers:
-            messagebox.showerror("Chyba", "Soubor je prázdný nebo neobsahuje žádná čísla.")
+        if not values:
+            messagebox.showerror("Chyba", "Soubor je prázdný.")
             return
 
-        if len(numbers) > MAX_COUNT:
-            messagebox.showerror("Chyba", f"V souboru je {len(numbers)} čísel. Maximum je {MAX_COUNT}.")
+        if len(values) > MAX_COUNT:
+            messagebox.showerror("Chyba", f"V souboru je {len(values)} položek. Maximum je {MAX_COUNT}.")
             return
 
-        # nactena cisla vlozime do policka v okne
-        self.numbers_entry.delete(0, "end")
-        self.numbers_entry.insert(0, " ".join(str(n) for n in numbers))
+        # uzivatel si zkontroluje, co se nacetlo; kdyz odmitne, nic se nezmeni
+        file_name = os.path.basename(file_path)
+        if not self.confirm_data(file_name, values, data_type):
+            return
 
-    def read_numbers(self):
-        # precte cisla z policka; kdyz jsou spatne, ukaze chybu a vrati None
-        try:
-            numbers = parse_numbers(self.numbers_entry.get())
-        except ValueError:
-            messagebox.showerror("Chyba", "Zadejte čísla oddělená mezerou (desetinná čísla s tečkou).")
-            return None
-        if not numbers:
-            messagebox.showerror("Chyba", "Zadejte aspoň jedno číslo.")
-            return None
-        if len(numbers) > MAX_COUNT:
-            messagebox.showerror("Chyba", f"Zadejte nejvýš {MAX_COUNT} čísel.")
-            return None
-        return numbers
+        # potvrzena data vlozime do policka v okne
+        self.data_entry.delete(0, "end")
+        self.data_entry.insert(0, " ".join(str(value) for value in values))
+        # stary vysledek uz k novym datum nepatri
+        self.result.config(text=f"Načteno ze souboru {file_name}: {data_type}, počet položek {len(values)}. "
+                                "Vyberte algoritmus a seřaďte je.")
+        self.speed.config(text="")
+
+    def confirm_data(self, file_name, values, data_type):
+        # kontrolni okno: ukaze, co se nacetlo a jakeho je to typu, a zepta se,
+        # jestli se ma tento typ dat tridit. vrati True, kdyz uzivatel potvrdi
+        confirmed = False
+
+        def answer_yes():
+            nonlocal confirmed
+            confirmed = True
+            window.destroy()
+
+        window = tk.Toplevel(self.root)
+        window.title("Kontrola načtených dat")
+        window.transient(self.root)
+        window.resizable(False, False)
+
+        frame = ttk.Frame(window, padding=15)
+        frame.pack(fill="both", expand=True)
+        # volne misto dostane sloupec s hodnotami, popisky zustanou u nich
+        frame.columnconfigure(1, weight=1)
+
+        ttk.Label(frame, text="Zkontrolujte načtená data", font=("", 14, "bold")).grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+
+        ttk.Label(frame, text="Soubor:").grid(row=1, column=0, sticky="w")
+        ttk.Label(frame, text=file_name).grid(row=1, column=1, sticky="w", padx=(10, 0))
+        ttk.Label(frame, text="Typ dat:").grid(row=2, column=0, sticky="w")
+        ttk.Label(frame, text=data_type, font=("", 0, "bold")).grid(row=2, column=1, sticky="w", padx=(10, 0))
+        ttk.Label(frame, text="Počet položek:").grid(row=3, column=0, sticky="w")
+        ttk.Label(frame, text=str(len(values))).grid(row=3, column=1, sticky="w", padx=(10, 0))
+
+        if data_type == TYPE_MIXED:
+            ttk.Label(frame, text="Soubor obsahuje čísla i text, proto se vše bude třídit jako text.",
+                      wraplength=420).grid(row=4, column=0, columnspan=2, sticky="w", pady=(10, 0))
+
+        # nahled celych dat, jen pro cteni
+        ttk.Label(frame, text="Náhled dat:").grid(row=5, column=0, columnspan=2, sticky="w", pady=(10, 2))
+        preview_frame = ttk.Frame(frame)
+        preview_frame.grid(row=6, column=0, columnspan=2, sticky="we")
+        preview = tk.Text(preview_frame, width=55, height=6, wrap="word")
+        scrollbar = ttk.Scrollbar(preview_frame, command=preview.yview)
+        preview.config(yscrollcommand=scrollbar.set)
+        preview.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        preview.insert("1.0", " ".join(str(value) for value in values))
+        preview.config(state="disabled")
+
+        ttk.Label(frame, text="Chcete třídit právě tento typ dat?").grid(
+            row=7, column=0, columnspan=2, sticky="w", pady=(10, 5))
+        row = ttk.Frame(frame)
+        row.grid(row=8, column=0, columnspan=2, sticky="w")
+        yes_button = ttk.Button(row, text="Ano, třídit", command=answer_yes)
+        yes_button.pack(side="left")
+        no_button = ttk.Button(row, text="Ne, zrušit", command=window.destroy)
+        no_button.pack(side="left", padx=5)
+
+        # Enter stiskne tlacitko, na kterem je fokus; Esc i krizek okna znamenaji Ne
+        yes_button.bind("<Return>", lambda event: answer_yes())
+        no_button.bind("<Return>", lambda event: window.destroy())
+        window.bind("<Escape>", lambda event: window.destroy())
+
+        # dokud uzivatel neodpovi, hlavni okno nereaguje
+        # na linuxu jde grab_set zavolat az na zobrazene okno
+        window.wait_visibility()
+        window.grab_set()
+        yes_button.focus_set()
+        window.wait_window()
+        return confirmed
+
+    def read_data(self):
+        # precte data z policka a jejich typ; kdyz jsou spatna, ukaze chybu a vrati (None, None)
+        values, data_type = parse_data(self.data_entry.get())
+        if not values:
+            messagebox.showerror("Chyba", "Zadejte aspoň jednu položku.")
+            return None, None
+        if len(values) > MAX_COUNT:
+            messagebox.showerror("Chyba", f"Zadejte nejvýš {MAX_COUNT} položek.")
+            return None, None
+        return values, data_type
 
     def sort(self):
-        numbers = self.read_numbers()
-        if numbers is None:
+        values, data_type = self.read_data()
+        if values is None:
             return
         # vybrany algoritmus seradi seznam primo, takze ho pak jen vypiseme
-        ALGORITHMS[self.algorithm.get()](numbers)
-        self.result.config(text="Výsledek: " + format_numbers(numbers))
+        ALGORITHMS[self.algorithm.get()](values)
+        self.result.config(text=f"Výsledek ({data_type}): " + format_values(values))
 
     def compare(self):
-        numbers = self.read_numbers()
-        if numbers is None:
+        values, data_type = self.read_data()
+        if values is None:
             return
-        # u vetsiho mnozstvi cisel to chvili trva, tak to napiseme do okna
+        # u vetsiho mnozstvi dat to chvili trva, tak to napiseme do okna
         self.speed.config(text="Měřím…")
         self.root.update()
 
-        times = compare_speed(numbers)
-        lines = [f"Porovnání rychlosti ({len(numbers)} čísel), od nejrychlejšího:"]
+        times = compare_speed(values)
+        lines = [f"Porovnání rychlosti ({data_type}, počet položek {len(values)}), od nejrychlejšího:"]
         for rank, (ms, name) in enumerate(times, start=1):
             ms_text = f"{ms:.3f}".replace(".", ",")  # desetinna carka jako v cestine
             lines.append(f"{rank}. {name} – {ms_text} ms")
